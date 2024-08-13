@@ -37,7 +37,7 @@ pragma solidity ^0.8.19;
 interface ERC721TokenReceiver
 {
 
-    function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes _data) external returns(bytes4);
+    function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes memory _data) external returns(bytes4);
 
 }
 
@@ -172,7 +172,7 @@ contract Autoglyphs {
     bytes prefix = "data:text/plain;charset=utf-8,";
 
     string internal nftName = "Autoglyphs";
-string internal nftSymbol = unicode"☵";
+    string internal nftSymbol = unicode"☵";
 
     // 0x2E = .
     // 0x4F = O
@@ -220,8 +220,8 @@ string internal nftSymbol = unicode"☵";
 
     // The following code generates art.
 
-    function draw(uint id) public view returns (string) {
-        uint a = uint(uint160(keccak256(abi.encodePacked(idToSeed[id]))));
+    function draw(uint id) public view returns (string memory) {
+       uint a = uint160(uint256(keccak256(abi.encodePacked(idToSeed[id]))));
         bytes memory output = new bytes(USIZE * (USIZE + 3) + 30);
         uint c;
         for (c = 0; c < 30; c++) {
@@ -272,18 +272,18 @@ string internal nftSymbol = unicode"☵";
                 x = x * int(a);
                 v = uint(x * y / ONE) % mod;
                 if (v < 5) {
-                    value = uint(symbols[v]);
+                    value = uint256(uint8(symbols[v]));
                 } else {
                     value = 0x2E;
                 }
-                output[c] = byte(bytes32(value << 248));
+                output[c] = bytes1(bytes32(value << 248));
                 c++;
             }
-            output[c] = byte(0x25);
+            output[c] = bytes1(0x25);
             c++;
-            output[c] = byte(0x30);
+            output[c] = bytes1(0x30);
             c++;
-            output[c] = byte(0x41);
+            output[c] = bytes1(0x41);
             c++;
         }
         string memory result = string(output);
@@ -300,7 +300,7 @@ string internal nftSymbol = unicode"☵";
         return idToSymbolScheme[_id];
     }
 
-    function createGlyph(uint seed) external payable returns (string) {
+    function createGlyph(uint seed) external payable returns (string memory) {
         return _mint(msg.sender, seed);
     }
 
@@ -308,22 +308,14 @@ string internal nftSymbol = unicode"☵";
     //// ERC 721 and 165  ////
     //////////////////////////
 
-    /**
-     * @dev Returns whether the target address is a contract.
-     * @param _addr Address to check.
-     * @return True if _addr is a contract, false if not.
-     */
+
     function isContract(address _addr) internal view returns (bool addressCheck) {
         uint256 size;
         assembly { size := extcodesize(_addr) } // solhint-disable-line
         addressCheck = size > 0;
     }
 
-    /**
-     * @dev Function to check which interfaces are suported by this contract.
-     * @param _interfaceID Id of the interface.
-     * @return True if _interfaceID is supported, false otherwise.
-     */
+
     function supportsInterface(bytes4 _interfaceID) external view returns (bool) {
         return supportedInterfaces[_interfaceID];
     }
@@ -342,7 +334,7 @@ string internal nftSymbol = unicode"☵";
      * @param _tokenId The NFT to transfer.
      * @param _data Additional data with no specified format, sent in call to `_to`.
      */
-    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes _data) external {
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory _data) external {
         _safeTransferFrom(_from, _to, _tokenId, _data);
     }
 
@@ -413,12 +405,7 @@ string internal nftSymbol = unicode"☵";
         return _getOwnerNFTCount(_owner);
     }
 
-    /**
-     * @dev Returns the address of the owner of the NFT. NFTs assigned to zero address are considered
-     * invalid, and queries about them do throw.
-     * @param _tokenId The identifier for an NFT.
-     * @return Address of _tokenId owner.
-     */
+ 
     function ownerOf(uint256 _tokenId) external view returns (address _owner) {
         _owner = idToOwner[_tokenId];
         require(_owner != address(0));
@@ -467,7 +454,7 @@ string internal nftSymbol = unicode"☵";
      * implementation.
      * @param _to The address that will own the minted NFT.
      */
-    function _mint(address _to, uint seed) internal returns (string) {
+    function _mint(address _to, uint seed) internal returns (string memory) {
         require(_to != address(0));
         require(numTokens < TOKEN_LIMIT);
         uint amount = 0;
@@ -481,7 +468,7 @@ string internal nftSymbol = unicode"☵";
         idToCreator[id] = _to;
         idToSeed[id] = seed;
         seedToId[seed] = id;
-        uint a = uint(uint160(keccak256(abi.encodePacked(seed))));
+       uint a = uint(uint160(uint256(keccak256(abi.encodePacked(seed)))));
         idToSymbolScheme[id] = getScheme(a);
         string memory uri = draw(id);
         emit Generated(id, _to, uri);
@@ -490,10 +477,11 @@ string internal nftSymbol = unicode"☵";
         _addNFToken(_to, id);
 
         if (msg.value > amount) {
-            msg.sender.transfer(msg.value - amount);
+           payable(msg.sender).transfer(msg.value - amount);
+
         }
         if (amount > 0) {
-            BENEFICIARY.transfer(amount);
+            payable (BENEFICIARY).transfer(amount);
         }
 
         emit Transfer(address(0), _to, id);
@@ -510,7 +498,8 @@ string internal nftSymbol = unicode"☵";
         require(idToOwner[_tokenId] == address(0));
         idToOwner[_tokenId] = _to;
 
-        uint256 length = ownerToIds[_to].push(_tokenId);
+        ownerToIds[_to].push(_tokenId); 
+uint256 length = ownerToIds[_to].length; 
         idToOwnerIndex[_tokenId] = length - 1;
     }
 
@@ -533,7 +522,7 @@ string internal nftSymbol = unicode"☵";
             idToOwnerIndex[lastToken] = tokenToRemoveIndex;
         }
 
-        ownerToIds[_from].length--;
+        ownerToIds[_from].pop();
     }
 
     /**
@@ -600,18 +589,12 @@ string internal nftSymbol = unicode"☵";
 
     //// Metadata
 
-    /**
-      * @dev Returns a descriptive name for a collection of NFTokens.
-      * @return Representing name.
-      */
+
     function name() external view returns (string memory _name) {
         _name = nftName;
     }
 
-    /**
-     * @dev Returns an abbreviated name for NFTokens.
-     * @return Representing symbol.
-     */
+
     function symbol() external view returns (string memory _symbol) {
         _symbol = nftSymbol;
     }
