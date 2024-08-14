@@ -67,7 +67,7 @@ contract Autoglyphs {
     uint public constant TOKEN_LIMIT = 512; // 8 for testing, 256 or 512 for prod;
     uint public constant ARTIST_PRINTS = 128; // 2 for testing, 64 for prod;
 
-    uint public constant PRICE = 200 gwei;
+    uint public constant PRICE = 0 gwei;
 
     // The beneficiary is 350.org
     address public constant BENEFICIARY = 0x50990F09d4f0cb864b8e046e7edC749dE410916b;
@@ -227,11 +227,6 @@ contract Autoglyphs {
         for (c = 0; c < 30; c++) {
             output[c] = prefix[c];
         }
-        int x = 0;
-        int y = 0;
-        uint v = 0;
-        uint value = 0;
-        uint mod = (a % 11) + 5;
         bytes5 symbols;
         if (idToSymbolScheme[id] == 0) {
             revert();
@@ -256,37 +251,30 @@ contract Autoglyphs {
         } else {
             symbols = 0x2E234F2E2E; // #O
         }
-        for (int i = int(0); i < SIZE; i++) {
-            y = (2 * (i - HALF_SIZE) + 1);
-            if (a % 3 == 1) {
-                y = -y;
-            } else if (a % 3 == 2) {
-                y = abs(y);
+ uint additionalRandomness1 = uint256(keccak256(abi.encodePacked(a, id))) % 7;
+    uint additionalRandomness2 = uint256(keccak256(abi.encodePacked(id, a))) % 13;
+
+    uint index = 30; // Start filling after the prefix
+    for (uint y = 0; y < USIZE; y++) {
+        for (uint x = 0; x < USIZE; x++) {
+            uint combinedIndex = (x + y + additionalRandomness1) % 5;
+            uint randomnessFactor = (a + x * y + additionalRandomness2) % 20;
+
+            if (randomnessFactor > 10) {
+                output[index++] = symbols[combinedIndex];
+            } else {
+                output[index++] = 0x20; // Place a space (ASCII 32)
             }
-            y = y * int(a);
-            for (int j = int(0); j < SIZE; j++) {
-                x = (2 * (j - HALF_SIZE) + 1);
-                if (a % 2 == 1) {
-                    x = abs(x);
-                }
-                x = x * int(a);
-                v = uint(x * y / ONE) % mod;
-                if (v < 5) {
-                    value = uint256(uint8(symbols[v]));
-                } else {
-                    value = 0x2E;
-                }
-                output[c] = bytes1(bytes32(value << 248));
-                c++;
-            }
-            output[c] = bytes1(0x25);
-            c++;
-            output[c] = bytes1(0x30);
-            c++;
-            output[c] = bytes1(0x41);
-            c++;
         }
-        string memory result = string(output);
+        output[index++] = 0x0A; // New line character
+    }
+
+    // Convert to string up to the last filled index to avoid \u0000 characters
+    bytes memory trimmedOutput = new bytes(index);
+    for (uint i = 0; i < index; i++) {
+        trimmedOutput[i] = output[i];
+    }
+        string memory result = string(trimmedOutput);
         return result;
     }
 
@@ -454,7 +442,7 @@ contract Autoglyphs {
      * implementation.
      * @param _to The address that will own the minted NFT.
      */
-    function _mint(address _to, uint seed) internal returns (string memory) {
+    function _mint(address _to, uint seed) public payable returns (string memory) {
         require(_to != address(0));
         require(numTokens < TOKEN_LIMIT);
         uint amount = 0;
