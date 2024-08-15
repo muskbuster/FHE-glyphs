@@ -155,6 +155,7 @@ const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.24",
     settings: {
+      viaIR: true,
       metadata: {
         // Not including the metadata hash
         // https://github.com/paulrberg/hardhat-template/issues/31
@@ -178,6 +179,7 @@ const config: HardhatUserConfig = {
     outDir: "types",
     target: "ethers-v6",
   },
+  
 };
 
 export default config;

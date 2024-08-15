@@ -2,7 +2,6 @@
  *Submitted for verification at Etherscan.io on 2019-04-05
 */
 import "fhevm/lib/TFHE.sol";
-import "fhevm/gateway/GatewayCaller.sol";
 pragma solidity ^0.8.19;
 
 /**
