@@ -2,6 +2,7 @@
  *Submitted for verification at Etherscan.io on 2019-04-05
 */
 import "fhevm/lib/TFHE.sol";
+import "fhevm/gateway/GatewayCaller.sol";
 pragma solidity ^0.8.19;
 
 /**
@@ -189,7 +190,7 @@ contract Autoglyphs {
         return -n;
     }
 
-function getScheme(euint64 a) internal view returns (euint8) {
+function getScheme(euint64 a) internal  returns (uint8) {
     euint64 index = TFHE.rem(a, 83);
         euint64 limit1 = TFHE.asEuint64(20);
     euint64 limit2 = TFHE.asEuint64(35);
@@ -222,7 +223,8 @@ function getScheme(euint64 a) internal view returns (euint8) {
     result = TFHE.select(TFHE.lt(index, limit8), result, scheme9);
     result = TFHE.select(TFHE.lt(index, limit9), result, scheme10);
 
-    return result;
+return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
+
 }
 
 
@@ -466,6 +468,7 @@ function getScheme(euint64 a) internal view returns (euint8) {
         idToSeed[id] = seed;
         seedToId[seed] = id;
        euint64 a = TFHE.asEuint64((uint160(uint256(keccak256(abi.encodePacked(seed))))));
+       uint schemegen = (uint160(uint256(keccak256(abi.encodePacked(seed)))));
         idToSymbolScheme[id] = getScheme(a);
         string memory uri = draw(id);
         emit Generated(id, _to, uri);
