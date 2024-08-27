@@ -230,3 +230,21 @@ If you use VSCode, you can get Solidity syntax highlighting with the
 ## License
 
 This project is licensed under MIT.
+
+
+## ChangeLog 
+
+### 27-08-24 
+Async decrypt implemented for scheme. While the random number itself is still encrypted the scheme is in decrypted form.
+
+Current FHE specific feature 
+- Seed used is not revealed 
+- Native Random seed generation
+
+Upcoming changes 
+- Alternative generator logic 
+- Add more FHE specific features
+the images are as such 
+![alt text](image.png)
+
+![alt text](image-1.png)
