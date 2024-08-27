@@ -2,6 +2,7 @@
  *Submitted for verification at Etherscan.io on 2019-04-05
 */
 import "fhevm/lib/TFHE.sol";
+import "fhevm/gateway/GatewayCaller.sol";
 pragma solidity ^0.8.19;
 
 /**
@@ -41,7 +42,7 @@ interface ERC721TokenReceiver
 
 }
 
-contract Autoglyphs {
+contract FHEglyphs is  GatewayCaller {
 
     event Generated(euint64 indexed index, address indexed a, string value);
 
@@ -50,13 +51,13 @@ contract Autoglyphs {
     ///  (`to` == 0). Exception: during contract creation, any number of NFTs
     ///  may be created and assigned without emitting Transfer. At the time of
     ///  any transfer, the approved address for that NFT (if any) is reset to none.
-    event Transfer(address indexed _from, address indexed _to, euint64 indexed _tokenId);
+    event Transfer(address indexed _from, address indexed _to, uint64 indexed _tokenId);
 
     /// @dev This emits when the approved address for an NFT is changed or
     ///  reaffirmed. The zero address indicates there is no approved address.
     ///  When a Transfer event emits, this also indicates that the approved
     ///  address for that NFT (if any) is reset to none.
-    event Approval(address indexed _owner, address indexed _approved, euint64 indexed _tokenId);
+    event Approval(address indexed _owner, address indexed _approved, uint64 indexed _tokenId);
 
     /// @dev This emits when an operator is enabled or disabled for an owner.
     ///  The operator can manage all NFTs of the owner.
@@ -72,27 +73,27 @@ contract Autoglyphs {
     // The beneficiary is 350.org
     address public constant BENEFICIARY = 0x50990F09d4f0cb864b8e046e7edC749dE410916b;
 
-    mapping (euint64 => address) private idToCreator;
-    mapping (euint64 => uint8) private idToSymbolScheme;
-
+    mapping (uint64 => address) private idToCreator;
+    mapping (uint64 => euint8) private eidToSymbolScheme;
+    mapping (uint64 => uint8) private idToSymbolScheme;
     // ERC 165
     mapping(bytes4 => bool) internal supportedInterfaces;
-
+        mapping(uint256 => uint64) public requestToID;
     /**
      * @dev A mapping from NFT ID to the address that owns it.
      */
-    mapping (euint64 => address) internal idToOwner;
+    mapping (uint64 => address) internal idToOwner;
 
     /**
      * @dev A mapping from NFT ID to the seed used to make it.
      */
-    mapping (euint64 => euint64) internal idToSeed;
-    mapping (euint64 => euint64) internal seedToId;
-
+    mapping (uint64 => euint64) internal idToSeed;
+    mapping (euint64 => uint64) internal seedToId;
+    mapping (uint64=>address) internal tempOwner;
     /**
      * @dev Mapping from NFT ID to approved address.
      */
-    mapping (euint64 => address) internal idToApproval;
+    mapping (uint64 => address) internal idToApproval;
 
     /**
      * @dev Mapping from owner address to mapping of operator addresses.
@@ -102,23 +103,23 @@ contract Autoglyphs {
     /**
      * @dev Mapping from owner to list of owned NFT IDs.
      */
-    mapping(address => euint64[]) internal ownerToIds;
+    mapping(address => uint64[]) internal ownerToIds;
 
     /**
      * @dev Mapping from NFT ID to its index in the owner tokens list.
      */
-    mapping(euint64 => euint64) internal idToOwnerIndex;
+    mapping(uint64 => uint64) internal idToOwnerIndex;
 
     /**
      * @dev Total number of tokens.
      */
-    uint internal numTokens = 0;
+    uint64 internal numTokens = 0;
 
     /**
      * @dev Guarantees that the msg.sender is an owner or operator of the given NFT.
      * @param _tokenId ID of the NFT to validate.
      */
-    modifier canOperate(euint64 _tokenId) {
+    modifier canOperate(uint64 _tokenId) {
         address tokenOwner = idToOwner[_tokenId];
         require(tokenOwner == msg.sender || ownerToOperators[tokenOwner][msg.sender]);
         _;
@@ -128,7 +129,7 @@ contract Autoglyphs {
      * @dev Guarantees that the msg.sender is allowed to transfer NFT.
      * @param _tokenId ID of the NFT to transfer.
      */
-    modifier canTransfer(euint64 _tokenId) {
+    modifier canTransfer(uint64 _tokenId) {
         address tokenOwner = idToOwner[_tokenId];
         require(
             tokenOwner == msg.sender
@@ -142,7 +143,7 @@ contract Autoglyphs {
      * @dev Guarantees that _tokenId is a valid Token.
      * @param _tokenId ID of the NFT to validate.
      */
-    modifier validNFToken(euint64 _tokenId) {
+    modifier validNFToken(uint64 _tokenId) {
         require(idToOwner[_tokenId] != address(0));
         _;
     }
@@ -189,7 +190,7 @@ contract Autoglyphs {
         return -n;
     }
 
-function getScheme(euint64 a) internal  returns (uint8) {
+function getScheme(euint64 a) internal  returns (euint8) {
     euint64 index = TFHE.rem(a, 83);
         euint64 limit1 = TFHE.asEuint64(20);
     euint64 limit2 = TFHE.asEuint64(35);
@@ -222,7 +223,7 @@ function getScheme(euint64 a) internal  returns (uint8) {
     result = TFHE.select(TFHE.lt(index, limit8), result, scheme9);
     result = TFHE.select(TFHE.lt(index, limit9), result, scheme10);
 
-return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
+return result;
 
 }
 
@@ -231,7 +232,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
 
     // The following code generates art.
 
-    function draw(euint64 id) public view returns (string memory) {
+    function draw(uint64 id) public view returns (string memory) {
        uint a = uint160(uint256(keccak256(abi.encodePacked(idToSeed[id]))));
         bytes memory output = new bytes(USIZE * (USIZE + 3) + 30);
         uint c;
@@ -280,7 +281,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
         output[index++] = 0x0A; // New line character
     }
 
-    // Convert to string up to the last filled index to avoid \u0000 characters
+
     bytes memory trimmedOutput = new bytes(index);
     for (uint i = 0; i < index; i++) {
         trimmedOutput[i] = output[i];
@@ -291,16 +292,17 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
 
     /* * ** *** ***** ******** ************* ******** ***** *** ** * */
 
-    function creator(euint64 _id) external view returns (address) {
+    function creator(uint64 _id) external view returns (address) {
         return idToCreator[_id];
     }
 
-    function symbolScheme(euint64 _id) external view returns (uint8) {
-        return idToSymbolScheme[_id];
+    function symbolScheme(uint64 _id) external view returns (euint8) {
+        return eidToSymbolScheme[_id];
     }
 
-    function createGlyph(euint64 seed) external payable returns (string memory) {
-        return _mint(msg.sender, seed);
+    function createGlyph() external payable returns (string memory) {
+        euint64 seed = TFHE.randEuint64();
+        _mint(msg.sender, seed);
     }
 
     //////////////////////////
@@ -333,7 +335,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _tokenId The NFT to transfer.
      * @param _data Additional data with no specified format, sent in call to `_to`.
      */
-    function safeTransferFrom(address _from, address _to, euint64 _tokenId, bytes memory _data) external {
+    function safeTransferFrom(address _from, address _to, uint64 _tokenId, bytes memory _data) external {
         _safeTransferFrom(_from, _to, _tokenId, _data);
     }
 
@@ -346,7 +348,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _to The new owner.
      * @param _tokenId The NFT to transfer.
      */
-    function safeTransferFrom(address _from, address _to, euint64 _tokenId) external {
+    function safeTransferFrom(address _from, address _to, uint64 _tokenId) external {
         _safeTransferFrom(_from, _to, _tokenId, "");
     }
 
@@ -360,7 +362,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _to The new owner.
      * @param _tokenId The NFT to transfer.
      */
-    function transferFrom(address _from, address _to, euint64 _tokenId) external canTransfer(_tokenId) validNFToken(_tokenId) {
+    function transferFrom(address _from, address _to, uint64 _tokenId) external canTransfer(_tokenId) validNFToken(_tokenId) {
         address tokenOwner = idToOwner[_tokenId];
         require(tokenOwner == _from);
         require(_to != address(0));
@@ -374,7 +376,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _approved Address to be approved for the given NFT ID.
      * @param _tokenId ID of the token to be approved.
      */
-    function approve(address _approved, euint64 _tokenId) external canOperate(_tokenId) validNFToken(_tokenId) {
+    function approve(address _approved, uint64 _tokenId) external canOperate(_tokenId) validNFToken(_tokenId) {
         address tokenOwner = idToOwner[_tokenId];
         require(_approved != tokenOwner);
         idToApproval[_tokenId] = _approved;
@@ -405,7 +407,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
     }
 
  
-    function ownerOf(euint64 _tokenId) external view returns (address _owner) {
+    function ownerOf(uint64 _tokenId) external view returns (address _owner) {
         _owner = idToOwner[_tokenId];
         require(_owner != address(0));
     }
@@ -416,7 +418,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _tokenId ID of the NFT to query the approval of.
      * @return Address that _tokenId is approved for.
      */
-    function getApproved(euint64 _tokenId) external view validNFToken(_tokenId) returns (address) {
+    function getApproved(uint64 _tokenId) external view validNFToken(_tokenId) returns (address) {
         return idToApproval[_tokenId];
     }
 
@@ -436,7 +438,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _to Address of a new owner.
      * @param _tokenId The NFT that is being transferred.
      */
-    function _transfer(address _to, euint64 _tokenId) internal {
+    function _transfer(address _to, uint64 _tokenId) internal {
         address from = idToOwner[_tokenId];
         _clearApproval(_tokenId);
 
@@ -453,7 +455,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * implementation.
      * @param _to The address that will own the minted NFT.
      */
-    function _mint(address _to, euint64 seed) public payable returns (string memory) {
+    function _mint(address _to, euint64 seed) public payable  {
         require(_to != address(0));
         require(numTokens < TOKEN_LIMIT);
         uint amount = 0;
@@ -461,19 +463,33 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
             amount = PRICE;
             require(msg.value >= amount);
         }
-        euint64 id = TFHE.asEuint64(numTokens + 1);
+        uint64 id = (numTokens + 1);
 
         idToCreator[id] = _to;
         idToSeed[id] = seed;
         seedToId[seed] = id;
+        tempOwner[id]=msg.sender;
        euint64 a = TFHE.asEuint64((uint160(uint256(keccak256(abi.encodePacked(seed))))));
-       uint schemegen = (uint160(uint256(keccak256(abi.encodePacked(seed)))));
-        idToSymbolScheme[id] = getScheme(a);
-        string memory uri = draw(id);
-        emit Generated(id, _to, uri);
+       // get scheme as euint8 and store in idTosymbol
+       // then send for decrypt request
+        eidToSymbolScheme[id] = getScheme(a);
+        // string memory uri = draw(id);
+        // emit Generated(id, _to, uri);
+    //-----------------------------------------------------------
+    //Decrypt request
+     TFHE.allow(eidToSymbolScheme[id], address(this));
+     uint256[] memory cts = new uint256[](1);
+      cts[0] = Gateway.toUint256(eidToSymbolScheme[id]);
+       uint256 requestID = Gateway.requestDecryption(
+            cts,
+            this.randonNumberCallBackResolver.selector,
+            0,
+            block.timestamp + 100,
+            false
+        );
+          requestToID[requestID] =id;
+    //------------------------------------------------------------
 
-        numTokens = numTokens + 1;
-        _addNFToken(_to, id);
 
         if (msg.value > amount) {
            payable(msg.sender).transfer(msg.value - amount);
@@ -482,10 +498,31 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
         if (amount > 0) {
             payable (BENEFICIARY).transfer(amount);
         }
-
-        emit Transfer(address(0), _to, id);
-        return uri;
     }
+// callback resolver 
+   function randonNumberCallBackResolver(uint256 requestID, uint8 decryptedInput) public onlyGateway returns (string memory){
+    uint64 _id=requestToID[requestID];
+    idToSymbolScheme[_id]=decryptedInput;
+    string memory uri = draw(_id);
+    address _to= tempOwner[_id];
+     numTokens = numTokens + 1;
+        _addNFToken(_to, _id);
+
+        // if (msg.value > amount) {
+        //    payable(msg.sender).transfer(msg.value - amount);
+
+        // }
+        // if (amount > 0) {
+        //     payable (BENEFICIARY).transfer(amount);
+        // }
+        emit Transfer(address(0), _to, _id);
+    return uri;
+   }
+
+
+
+
+
 
     /**
      * @dev Assigns a new NFT to an address.
@@ -493,7 +530,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _to Address to which we want to add the NFT.
      * @param _tokenId Which NFT we want to add.
      */
-    function _addNFToken(address _to, euint64 _tokenId) internal {
+    function _addNFToken(address _to, uint64 _tokenId) internal {
         require(idToOwner[_tokenId] == address(0));
         idToOwner[_tokenId] = _to;
 
@@ -519,7 +556,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _tokenId The NFT to transfer.
      * @param _data Additional data with no specified format, sent in call to `_to`.
      */
-    function _safeTransferFrom(address _from,  address _to,  euint64 _tokenId,  bytes memory _data) private canTransfer(_tokenId) validNFToken(_tokenId) {
+    function _safeTransferFrom(address _from,  address _to,  uint64 _tokenId,  bytes memory _data) private canTransfer(_tokenId) validNFToken(_tokenId) {
         address tokenOwner = idToOwner[_tokenId];
         require(tokenOwner == _from);
         require(_to != address(0));
@@ -531,7 +568,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @dev Clears the current approval of a given NFT ID.
      * @param _tokenId ID of the NFT to be transferred.
      */
-    function _clearApproval(euint64 _tokenId) private {
+    function _clearApproval(uint64 _tokenId) private {
         if (idToApproval[_tokenId] != address(0)) {
             delete idToApproval[_tokenId];
         }
@@ -568,7 +605,7 @@ return uint8(uint256(keccak256(abi.encodePacked(result))) & 0xFF);
      * @param _tokenId Id for which we want uri.
      * @return URI of _tokenId.
      */
-    function tokenURI(euint64 _tokenId) external view validNFToken(_tokenId) returns (string memory) {
+    function tokenURI(uint64 _tokenId) external view validNFToken(_tokenId) returns (string memory) {
         return draw(_tokenId);
     }
 
