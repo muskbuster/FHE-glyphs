@@ -104,7 +104,8 @@ contract FHEglyphs is  GatewayCaller {
      * @dev Mapping from owner to list of owned NFT IDs.
      */
     mapping(address => uint64[]) internal ownerToIds;
-
+    mapping(uint64 => euint64) internal idTorand1;
+    mapping(uint64 => euint64) internal idTorand2;
     /**
      * @dev Mapping from NFT ID to its index in the owner tokens list.
      */
@@ -232,7 +233,7 @@ return result;
 
     // The following code generates art.
 
-    function draw(uint64 id) public view returns (string memory) {
+    function draw(uint64 id,euint64 r1,euint64 r2) public view returns (string memory) {
        uint a = uint160(uint256(keccak256(abi.encodePacked(idToSeed[id]))));
         bytes memory output = new bytes(USIZE * (USIZE + 3) + 30);
         uint c;
@@ -243,7 +244,7 @@ return result;
         if (idToSymbolScheme[id] == 0) {
             revert();
         } else if (idToSymbolScheme[id] == 1) {
-            symbols = 0x2E582F5C2E; // X/\
+            symbols = 0x2E582F5C23; // X/\
         } else if (idToSymbolScheme[id] == 2) {
             symbols = 0x2E2B2D7C2E; // +-|
         } else if (idToSymbolScheme[id] == 3) {
@@ -253,7 +254,7 @@ return result;
         } else if (idToSymbolScheme[id] == 5) {
             symbols = 0x2E4F7C2D2E; // O|-
         } else if (idToSymbolScheme[id] == 6) {
-            symbols = 0x2E5C5C2E2E; // \
+            symbols = 0x2E5C5C2E4F; // \
         } else if (idToSymbolScheme[id] == 7) {
             symbols = 0x2E237C2D2B; // #|-+
         } else if (idToSymbolScheme[id] == 8) {
@@ -263,23 +264,25 @@ return result;
         } else {
             symbols = 0x2E234F2E2E; // #O
         }
- uint additionalRandomness1 = uint256(keccak256(abi.encodePacked(a, id))) % 7;
-    uint additionalRandomness2 = uint256(keccak256(abi.encodePacked(id, a))) % 13;
+uint additionalRandomness1 = (uint256(keccak256(abi.encodePacked(r1))) ) ;
+uint additionalRandomness2 = (uint256(keccak256(abi.encodePacked(r2))) ) ;
 
-    uint index = 30; // Start filling after the prefix
-    for (uint y = 0; y < USIZE; y++) {
-        for (uint x = 0; x < USIZE; x++) {
-            uint combinedIndex = (x + y + additionalRandomness1) % 5;
-            uint randomnessFactor = (a + x * y + additionalRandomness2) % 20;
+uint index = 30; // Start filling after the prefix
+for (uint y = 0; y < USIZE; y++) {
+    for (uint x = 0; x < USIZE; x++) {
+        // Introducing bit shifts to increase randomness
+        uint combinedIndex = ((a << x) + (y >> 1) + additionalRandomness1 + (block.number << 1)) % 5;
+        uint randomnessFactor = ((a >> 2) + (x << 2) * (y >> 1) + (additionalRandomness2 << 1)) % 31;
+        
 
-            if (randomnessFactor > 10) {
-                output[index++] = symbols[combinedIndex];
-            } else {
-                output[index++] = 0x20; // Place a space (ASCII 32)
-            }
+        if (randomnessFactor > 15)  {
+            output[index++] = symbols[combinedIndex];
+        } else {
+            output[index++] = 0x20; // Place a space (ASCII 32)
         }
-        output[index++] = 0x0A; // New line character
     }
+    output[index++] = 0x0A; // New line character
+}
 
 
     bytes memory trimmedOutput = new bytes(index);
@@ -503,7 +506,9 @@ return result;
    function randonNumberCallBackResolver(uint256 requestID, uint8 decryptedInput) public onlyGateway returns (string memory){
     uint64 _id=requestToID[requestID];
     idToSymbolScheme[_id]=decryptedInput;
-    string memory uri = draw(_id);
+    idTorand1[_id]= TFHE.randEuint64();
+    idTorand2[_id]= TFHE.randEuint64();
+    string memory uri = draw(_id, idTorand1[_id],idTorand2[_id]);
     address _to= tempOwner[_id];
      numTokens = numTokens + 1;
         _addNFToken(_to, _id);
@@ -606,7 +611,7 @@ return result;
      * @return URI of _tokenId.
      */
     function tokenURI(uint64 _tokenId) external view validNFToken(_tokenId) returns (string memory) {
-        return draw(_tokenId);
+        return draw(_tokenId,idTorand1[_tokenId],idTorand2[_tokenId]);
     }
 
 }
