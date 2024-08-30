@@ -248,3 +248,10 @@ the images are as such
 ![alt text](image.png)
 
 ![alt text](image-1.png)
+
+### 30-08-24 
+Updates 
+
+- Implemented new generator logic and has different patterns 
+- Issue : fhevm reverts randomly sometimes and executes correctly some times. Unsure why that happens
+![alt text](<Annotation 2024-08-30 122533.png>) ![alt text](<Annotation 2024-08-30 122518.png>) ![alt text](<Annotation 2024-08-30 122615.png>) ![alt text](<Annotation 2024-08-30 122551.png>)
